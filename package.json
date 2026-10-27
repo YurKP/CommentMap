@@ -1,0 +1,41 @@
+{
+  "name": "commentmap",
+  "displayName": "CommentMap",
+  "description": "Collects and organizes code comments",
+  "version": "0.0.1",
+
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+
+  "categories": [
+    "Other"
+  ],
+
+  "main": "./out/extension.js",
+
+  "contributes": {
+    "commands": [
+      {
+        "command": "commentmap.open",
+        "title": "CommentMap: Open"
+      },
+      {
+        "command": "commentmap.createDocument",
+        "title": "CommentMap: Create Comment Document"
+      }
+    ]
+  },
+
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.100.0",
+    "typescript": "^5.6.0"
+  }
+}
