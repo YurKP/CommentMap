@@ -10,13 +10,13 @@ const defaultTags = ['TODO', 'FIXME', 'NOTE'];
 
 export function activate(context: vscode.ExtensionContext) {
     const openCommand = vscode.commands.registerCommand('commentmap.open', () => {
-        showComments();
+        openCommentMap();
     });
 
     const createDocumentCommand = vscode.commands.registerCommand(
         'commentmap.createDocument',
         () => {
-            showComments();
+            vscode.window.showInformationMessage('Экспорт появится в следующей версии.');
         }
     );
 
@@ -69,7 +69,21 @@ function getCommentPart(line: string): string | null {
     return null;
 }
 
-async function showComments() {
+function groupComments(comments: CommentItem[]) {
+    const groups: Record<string, CommentItem[]> = {};
+
+    for (const comment of comments) {
+        if (!groups[comment.tag]) {
+            groups[comment.tag] = [];
+        }
+
+        groups[comment.tag].push(comment);
+    }
+
+    return groups;
+}
+
+function openCommentMap() {
     const editor = vscode.window.activeTextEditor;
 
     if (!editor) {
@@ -78,20 +92,60 @@ async function showComments() {
     }
 
     const comments = collectComments(editor.document.getText());
-    let output = '# CommentMap\n\n';
+    const panel = vscode.window.createWebviewPanel(
+        'commentmap',
+        'CommentMap',
+        vscode.ViewColumn.Beside,
+        { enableScripts: false }
+    );
 
-    for (const comment of comments) {
-        output += `- [${comment.tag}] Строка ${comment.line}: ${comment.text}\n`;
+    panel.webview.html = createWebviewHtml(editor.document.fileName, comments);
+}
+
+function createWebviewHtml(fileName: string, comments: CommentItem[]): string {
+    const groups = groupComments(comments);
+    let commentsHtml = '';
+
+    for (const groupName of Object.keys(groups)) {
+        commentsHtml += `<h2>${escapeHtml(groupName)} (${groups[groupName].length})</h2>`;
+
+        for (const item of groups[groupName]) {
+            commentsHtml += `<p>Строка ${item.line}: ${escapeHtml(item.text)}</p>`;
+        }
     }
 
-    if (comments.length === 0) {
-        output += 'Комментарии не найдены.\n';
+    if (commentsHtml.length === 0) {
+        commentsHtml = '<p>Комментарии не найдены.</p>';
     }
 
-    const document = await vscode.workspace.openTextDocument({
-        language: 'markdown',
-        content: output
-    });
+    return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>CommentMap</title>
+    <style>
+        body {
+            font-family: var(--vscode-font-family);
+            color: var(--vscode-foreground);
+            background: var(--vscode-editor-background);
+            padding: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>CommentMap</h1>
+    <p>${escapeHtml(fileName)}</p>
+    <h2>Комментарии (${comments.length})</h2>
+    ${commentsHtml}
+</body>
+</html>`;
+}
 
-    await vscode.window.showTextDocument(document, vscode.ViewColumn.Beside);
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
